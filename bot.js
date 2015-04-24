@@ -4,7 +4,8 @@ var util = require("util");
 
 /*
  * A single instance of Bot represents a single GNUGo process. A bot must be
- * provided with the gnugo command e.g "gnugo --mode gtp --level 10"
+ * provided with the gnugo command e.g "gnugo --mode gtp --level 10". Board
+ * sizes over 19 are not supported
  */
 var Bot = function(cmd, args) {
 	var proc = spawn(cmd, args.split(" "));
@@ -23,13 +24,19 @@ var Bot = function(cmd, args) {
 	// TODO: figure out whether or not this is a good idea
 	var commandHandlers = {};
 
+	// Whenever a line is read, parse the response ID and and pass rest of
+	// the line to an appropriate function from commandHandlers.
 	rl.on("line", function(line) {
-		console.log(line);
+		var line = line.trim();
+		if (line === "" ) {
+			console.log("Empty line, omit");
+			return
+		}
 		if (line.charAt(0) === "?") {
 			console.log("Received an error from GNUGo: ", line);
 			return
 		}
-		var id = line.split(" ")[0].substring(1);
+		var id = parseInt(line.split(" ")[0].substring(1));
 		var handler = commandHandlers[id];
 
 		if( typeof handler == "function" ) {
@@ -42,6 +49,7 @@ var Bot = function(cmd, args) {
 			console.log("No command handler for ID ", id);
 		}
 	});
+
 	rl.on("end", function() {
 		console.log("Unexpected EOF");
 	});
@@ -74,17 +82,30 @@ var Bot = function(cmd, args) {
 			var y = parseInt(movestr.substring(1));
 			return {x:x,y:y};
 		}
-		commandHandlers[cmdID.toString()] = function(line) {
+		var handler = function(line) {
 			var coord = fromGTPCoord(line);
 			console.log(coord);
 		}
-		this.command(util.format("genmove %s", color));
+		this.command(util.format("genmove %s", color), handler);
 	}.bind(this);
 
-	this.command = function(cmd) {
+	// Sends a command string over GTP. If handler is specified sets it to
+	// be called after a response is recieved over GTP. If handler is not
+	// defined a no-op handler is set.
+	this.command = function(cmd, handler) {
+		console.log(cmd, typeof handler);
+		if (typeof handler == "function") {
+			commandHandlers[cmdID] = handler;
+		} else if(typeof handler == "undefined") {
+			commandHandlers[cmdID] = this.noOpHandler;
+		}
 		proc.stdin.write(util.format("%d %s\n", cmdID, cmd));
 		cmdID++;
 	}.bind(this);
+
+	this.noOpHandler = function(line) {
+		// do nothing!
+	}
 
 	this.kill = function() {
 		proc.kill();
