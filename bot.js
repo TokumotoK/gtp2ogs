@@ -69,7 +69,7 @@ var Bot = function(cmd, args) {
 				reject(new Error("Bad size "+size));
 				return;
 			}
-			this.command("boardsize "+size, function(line) {
+			this.gtpCommand("boardsize "+size, function(line) {
 				resolve();
 			});
 		}.bind(this));
@@ -94,7 +94,7 @@ var Bot = function(cmd, args) {
 				reject(gtpCoord);
 				return
 			}
-			this.command(util.format("play %s %s", move.color, gtpCoord), function() {
+			this.gtpCommand(util.format("play %s %s", move.color, gtpCoord), function() {
 				resolve();
 			});
 		}.bind(this));
@@ -116,14 +116,14 @@ var Bot = function(cmd, args) {
 			proc.on("close", function() {
 				reject("error");
 			});
-			this.command(util.format("genmove %s", color), handler);
+			this.gtpCommand(util.format("genmove %s", color), handler);
 		}.bind(this));
 	}.bind(this);
 
 	// Sends a command string over GTP. If handler is specified sets it to
 	// be called after a response is recieved over GTP. If handler is not
 	// defined a no-op handler is set.
-	this.command = function(cmd, handler) {
+	this.gtpCommand = function(cmd, handler) {
 		if (typeof handler == "function") {
 			commandHandlers[cmdID] = handler;
 		} else if(typeof handler == "undefined") {
