@@ -90,8 +90,15 @@ var Bot = function(cmd, args) {
 		}.bind(this));
 	}.bind(this);
 
+	// Send the 'genmove' GTP command and return a promise. Promise fails
+	// if the color is other than "black" or "white"or if something goes
+	// wrong with GNUGo
 	this.genmove = function(color) {
 		return new RSVP.Promise(function(resolve, reject) {
+			if (color !== "black" && color !== "white" ) {
+				reject(new Error(util.format("Illegal color '%s'", color)));
+				return;
+			}
 			var handler = function(line) {
 				var coord = fromGTPCoord(line);
 				coord.color = color;
