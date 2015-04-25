@@ -19,9 +19,7 @@ var Bot = function(cmd, args) {
 	var cmdID = 0;
 
 	// A map of functions to call whenever a response to a command is
-	// received. Command handlers are accessed using cmdID as a string to
-	// save the trouble of converting the ID received from GTP to an int.
-	// TODO: figure out whether or not this is a good idea
+	// received. Command handlers are accessed using cmdID as a number.
 	var commandHandlers = {};
 
 	// Whenever a line is read, parse the response ID and and pass rest of
