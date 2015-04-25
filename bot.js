@@ -2,6 +2,8 @@ var spawn = require("child_process").spawn;
 var readline = require("readline");
 var util = require("util");
 var log4js = require("log4js");
+var RSVP = require("rsvp");
+var MAX_BOARDSIZE = 19;
 
 /*
  * A single instance of Bot represents a single GNUGo process. A bot must be
@@ -30,8 +32,8 @@ var Bot = function(cmd, args) {
 	rl.on("line", function(line) {
 		var line = line.trim();
 		if (line === "" ) {
-			logger.warn("Empty line, omit");
-			return
+			// Omit empty lines
+			return 
 		}
 		if (line.charAt(0) === "?") {
 			logger.error("Received an error from GNUGo: ", line);
@@ -59,20 +61,43 @@ var Bot = function(cmd, args) {
 		logger.log("Process exited PID:%d code:%d signal:%s", proc.pid, code, signal);
 	});
 
+	// Send the 'boardsize' GTP command and return a promise. Fails if the
+	// requested size is larger than 19.
 	this.boardsize = function(size) {
-		this.command("boardsize "+size);
+		return new RSVP.Promise(function(resolve, reject) {
+			if (size > MAX_BOARDSIZE) {
+				reject(new Error("Bad size "+size));
+				return;
+			}
+			this.command("boardsize "+size, function(line) {
+				resolve();
+			});
+		}.bind(this));
 	}.bind(this);
 
+	// Send the 'play' GTP command and return a promise. Promise fails if
+	// the coordinates are illegal or if something goes wrong with GNUGo
 	this.play = function(move) {
 		var toGTPCoord = function(move) {
 			// NOTE: i is missing on purpose!
 			// See http://senseis.xmp.net/?Coordinates for more information
 			var x = "abcdefghjklmnopqrst".charAt(move.x-1);
 			var y = move.y;
+			if ( x === "" || y>19) {
+				return new Error(util.format("Illegal coordinates x:%d y:%d",move.x, move.y));
+			}
 			return x+y;
 		}
-		var gtpCoord = toGTPCoord(move);
-		this.command(util.format("play %s %s", move.color, gtpCoord));
+		return new RSVP.Promise(function(resolve, reject) {
+			var gtpCoord = toGTPCoord(move);
+			if (util.isError(gtpCoord)) {
+				reject(gtpCoord);
+				return
+			}
+			this.command(util.format("play %s %s", move.color, gtpCoord), function() {
+				resolve();
+			});
+		}.bind(this));
 	}.bind(this);
 
 	this.genmove = function(color) {
@@ -81,13 +106,18 @@ var Bot = function(cmd, args) {
 			// TODO: make sure that OGS' coordinates start from zero
 			var x = "abcdefghjklmnopqrst".indexOf(xchar)+1;
 			var y = parseInt(movestr.substring(1));
-			return {x:x,y:y};
+			return {x:x,y:y,color:color};
 		}
-		var handler = function(line) {
-			var coord = fromGTPCoord(line);
-			logger.debug(coord);
-		}
-		this.command(util.format("genmove %s", color), handler);
+		return new RSVP.Promise(function(resolve, reject) {
+			var handler = function(line) {
+				var coord = fromGTPCoord(line);
+				resolve(coord);
+			}
+			proc.on("close", function() {
+				reject("error");
+			});
+			this.command(util.format("genmove %s", color), handler);
+		}.bind(this));
 	}.bind(this);
 
 	// Sends a command string over GTP. If handler is specified sets it to
@@ -99,13 +129,15 @@ var Bot = function(cmd, args) {
 		} else if(typeof handler == "undefined") {
 			commandHandlers[cmdID] = this.noOpHandler;
 		}
-		proc.stdin.write(util.format("%d %s\n", cmdID, cmd));
+		var cmdstr = util.format("%d %s\n", cmdID, cmd);
+		logger.debug("GTP:", cmdstr.trim());
+		proc.stdin.write(cmdstr);
 		cmdID++;
 	}.bind(this);
 
 	this.noOpHandler = function(line) {
 		// do nothing!
-	}
+	}.bind(this);
 
 	this.kill = function() {
 		proc.kill();
