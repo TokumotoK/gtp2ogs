@@ -1,4 +1,4 @@
-var spawn = require("child_process").spawn;
+var exec = require("child_process").exec;
 var readline = require("readline");
 var util = require("util");
 var log4js = require("log4js");
@@ -12,7 +12,7 @@ var MAX_BOARDSIZE = 19;
  * TODO: add GNUGo PID to all log lines
  */
 var Bot = function(cmd, args) {
-	var proc = spawn(cmd, args.split(" "));
+	var proc = exec(cmd, args.split(" "));
 	var logger = log4js.getLogger();
 
 	// Used to read lines out of the child process' stdout
