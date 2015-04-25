@@ -1,14 +1,17 @@
 var spawn = require("child_process").spawn;
 var readline = require("readline");
 var util = require("util");
+var log4js = require("log4js");
 
 /*
  * A single instance of Bot represents a single GNUGo process. A bot must be
  * provided with the gnugo command e.g "gnugo --mode gtp --level 10". Board
  * sizes over 19 are not supported
+ * TODO: add GNUGo PID to all log lines
  */
 var Bot = function(cmd, args) {
 	var proc = spawn(cmd, args.split(" "));
+	var logger = log4js.getLogger();
 
 	// Used to read lines out of the child process' stdout
 	// TODO: figure out a better way to do this, this seems a bit overkill
@@ -27,11 +30,11 @@ var Bot = function(cmd, args) {
 	rl.on("line", function(line) {
 		var line = line.trim();
 		if (line === "" ) {
-			console.log("Empty line, omit");
+			logger.warn("Empty line, omit");
 			return
 		}
 		if (line.charAt(0) === "?") {
-			console.log("Received an error from GNUGo: ", line);
+			logger.error("Received an error from GNUGo: ", line);
 			return
 		}
 		var id = parseInt(line.split(" ")[0].substring(1));
@@ -44,16 +47,16 @@ var Bot = function(cmd, args) {
 			handler(response.join(" "));
 			delete commandHandlers[id];
 		} else {
-			console.log("No command handler for ID ", id);
+			logger.error("No command handler for ID ", id);
 		}
 	});
 
 	rl.on("end", function() {
-		console.log("Unexpected EOF");
+		logger.error("Unexpected EOF");
 	});
 
 	proc.on("close", function(code, signal) {
-		console.log(code, signal);
+		logger.log("Process exited PID:%d code:%d signal:%s", proc.pid, code, signal);
 	});
 
 	this.boardsize = function(size) {
@@ -82,7 +85,7 @@ var Bot = function(cmd, args) {
 		}
 		var handler = function(line) {
 			var coord = fromGTPCoord(line);
-			console.log(coord);
+			logger.debug(coord);
 		}
 		this.command(util.format("genmove %s", color), handler);
 	}.bind(this);
@@ -91,7 +94,6 @@ var Bot = function(cmd, args) {
 	// be called after a response is recieved over GTP. If handler is not
 	// defined a no-op handler is set.
 	this.command = function(cmd, handler) {
-		console.log(cmd, typeof handler);
 		if (typeof handler == "function") {
 			commandHandlers[cmdID] = handler;
 		} else if(typeof handler == "undefined") {
