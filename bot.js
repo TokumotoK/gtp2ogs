@@ -78,16 +78,6 @@ var Bot = function(cmd, args) {
 	// Send the 'play' GTP command and return a promise. Promise fails if
 	// the coordinates are illegal or if something goes wrong with GNUGo
 	this.play = function(move) {
-		var toGTPCoord = function(move) {
-			// NOTE: i is missing on purpose!
-			// See http://senseis.xmp.net/?Coordinates for more information
-			var x = "abcdefghjklmnopqrst".charAt(move.x-1);
-			var y = move.y;
-			if ( x === "" || y>19) {
-				return new Error(util.format("Illegal coordinates x:%d y:%d",move.x, move.y));
-			}
-			return x+y;
-		}
 		return new RSVP.Promise(function(resolve, reject) {
 			var gtpCoord = toGTPCoord(move);
 			if (util.isError(gtpCoord)) {
@@ -101,16 +91,10 @@ var Bot = function(cmd, args) {
 	}.bind(this);
 
 	this.genmove = function(color) {
-		var fromGTPCoord = function(movestr) {
-			var xchar = movestr.toLowerCase().charAt(0);
-			// TODO: make sure that OGS' coordinates start from zero
-			var x = "abcdefghjklmnopqrst".indexOf(xchar)+1;
-			var y = parseInt(movestr.substring(1));
-			return {x:x,y:y,color:color};
-		}
 		return new RSVP.Promise(function(resolve, reject) {
 			var handler = function(line) {
 				var coord = fromGTPCoord(line);
+				coord.color = color;
 				resolve(coord);
 			}
 			proc.on("close", function() {
@@ -144,6 +128,26 @@ var Bot = function(cmd, args) {
 	}.bind(this);
 
 	return this
+}
+
+// NOTE: i is missing on purpose!
+// See http://senseis.xmp.net/?Coordinates for more information
+var COORD_LETTERS = "abcdefghjklmnopqrst";
+
+var fromGTPCoord = function(movestr) {
+	var xchar = movestr.toLowerCase().charAt(0);
+	var x = COORD_LETTERS.indexOf(xchar)+1;
+	var y = parseInt(movestr.substring(1));
+	return {x:x,y:y};
+}
+
+var toGTPCoord = function(move) {
+	var x = COORD_LETTERS.charAt(move.x-1);
+	var y = move.y;
+	if ( x === "" || y>19) {
+		return new Error(util.format("Illegal coordinates x:%d y:%d",move.x, move.y));
+	}
+	return x+y;
 }
 
 module.exports =  {
