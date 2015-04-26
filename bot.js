@@ -37,6 +37,7 @@ var Bot = function(cmd, args) {
 			// Omit empty lines
 			return 
 		}
+		logger.debug(util.format("recv GTP: %s", line));
 		if (line.charAt(0) === "?") {
 			logger.error("Received an error from GNUGo: ", line);
 			return
@@ -168,7 +169,7 @@ var Bot = function(cmd, args) {
 			commandHandlers[cmdID] = this.noOpHandler;
 		}
 		var cmdstr = util.format("%d %s\n", cmdID, cmd);
-		logger.debug("GTP:", cmdstr.trim());
+		logger.debug("send GTP:", cmdstr.trim());
 		proc.stdin.write(cmdstr);
 		cmdID++;
 	}.bind(this);
