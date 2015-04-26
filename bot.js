@@ -32,6 +32,7 @@ var Bot = function(cmd, args) {
 	// Whenever a line is read, parse the response ID and and pass rest of
 	// the line to an appropriate function from commandHandlers.
 	rl.on("line", function(line) {
+		var err = null;
 		var line = line.trim();
 		if (line === "" ) {
 			// Omit empty lines
@@ -39,13 +40,16 @@ var Bot = function(cmd, args) {
 		}
 		logger.debug(util.format("recv GTP: %s", line));
 		if (line.charAt(0) === "?") {
-			logger.error("Received an error from GNUGo: ", line);
-			return
+			err = new Error(util.format("Received an error from GNUGo: %s", line));
 		}
 		var id = parseInt(line.split(" ")[0].substring(1));
 		var handler = commandHandlers[id];
 
 		if( typeof handler == "function" ) {
+			if (err !== null) {
+				handler(err);
+				return;
+			}
 			var response = line.split(" ");
 			// drop the response ID and pass the actual line to the handler
 			response.shift();
@@ -87,7 +91,10 @@ var Bot = function(cmd, args) {
 				reject(gtpCoord);
 				return
 			}
-			this.gtpCommand(util.format("play %s %s", move.color, gtpCoord), function() {
+			this.gtpCommand(util.format("play %s %s", move.color, gtpCoord), function(resp) {
+				if (util.isError(resp)) {
+					return reject(resp);
+				}
 				resolve();
 			});
 		}.bind(this));
@@ -101,7 +108,10 @@ var Bot = function(cmd, args) {
 				reject(new Error(util.Format("Bad color %s", color)));
 				return;
 			}
-			this.gtpCommand(util.format("play %s PASS", color), function(line) {
+			this.gtpCommand(util.format("play %s PASS", color), function(resp) {
+				if (util.isError(resp)) {
+					return reject(resp);
+				}
 				resolve();
 			});
 		}.bind(this));
@@ -117,6 +127,9 @@ var Bot = function(cmd, args) {
 				return;
 			}
 			var handler = function(line) {
+				if (util.isError(line)) {
+					return reject(line);
+				}
 				var move = {color:color};
 				switch (line) {
 					case "PASS":
@@ -132,9 +145,6 @@ var Bot = function(cmd, args) {
 				}
 				resolve(move);
 			}
-			proc.on("close", function() {
-				reject("error");
-			});
 			this.gtpCommand(util.format("genmove %s", color), handler);
 		}.bind(this));
 	}.bind(this);
@@ -151,7 +161,10 @@ var Bot = function(cmd, args) {
 					return;
 				}
 			}
-			var handler = function() {
+			var handler = function(resp) {
+				if (util.isError(resp)) {
+					return reject(resp);
+				}
 				resolve();
 			}
 			this.gtpCommand(util.format("komi %s", komi), handler);
@@ -165,8 +178,11 @@ var Bot = function(cmd, args) {
 				reject(new Error(util.format("Bad value for handicap (%s)", numstones)));
 				return;
 			}
-			var handler = function(stonesstr) {
-				var stones = stonesstr.split(" ").map(fromGTPCoord);
+			var handler = function(resp) {
+				if (util.isError(resp)) {
+					return reject(resp);
+				}
+				var stones = resp.split(" ").map(fromGTPCoord);
 				resolve(stones);
 			}
 			this.gtpCommand(util.format("fixed_handicap %d", numstones), handler);
