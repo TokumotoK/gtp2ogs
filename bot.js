@@ -171,7 +171,9 @@ var Bot = function(cmd, args) {
         }.bind(this));
     }.bind(this);
 
-    // Send the 'fixed_handicap' GTP command and return a promise.
+    // Send the 'fixed_handicap' GTP command and return a promise. The promise
+    // fails if the number of handicap stones is not an integer or if something
+    // goes wrong with GNUGo
     this.setHandicap = function(numstones) {
         return new RSVP.Promise(function(resolve, reject) {
             if (!isInteger(numstones)) {
