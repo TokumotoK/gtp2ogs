@@ -122,6 +122,25 @@ var Bot = function(cmd, args) {
 		}.bind(this));
 	}.bind(this);
 
+	// Send the 'komi' GTP command and return a promise. Promise fails if
+	// the provided value is not a number or if something goes wrong with
+	// GNUGo.
+	this.komi = function(komi) {
+		return new RSVP.Promise(function(resolve, reject) {
+			if (isNaN(komi)) {
+				var komif = parseFloat(komi);
+				if (isNaN(komif)) {
+					reject(new Error(util.format("Bad value for komi (%s)", komi)));
+					return;
+				}
+			}
+			var handler = function() {
+				resolve();
+			}
+			this.gtpCommand(util.format("komi %s", komi), handler);
+		}.bind(this));
+	}.bind(this);
+
 	// Sends a command string over GTP. If handler is specified sets it to
 	// be called after a response is recieved over GTP. If handler is not
 	// defined a no-op handler is set.
