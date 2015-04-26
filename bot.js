@@ -11,11 +11,10 @@ var MAX_BOARDSIZE = 19;
  * A single instance of Bot represents a single GNUGo process. A bot must be
  * provided with the gnugo command e.g "gnugo --mode gtp --level 10". Board
  * sizes over 19 are not supported
- * TODO: add GNUGo PID to all log lines
  */
 var Bot = function(cmd, args) {
     var proc = spawn(cmd, args.split(" "));
-    var logger = log4js.getLogger();
+    var logger = log4js.getLogger(util.format("Bot PID:%s", proc.pid));
 
     // Used to read lines out of the child process' stdout
     // TODO: figure out a better way to do this, this seems a bit overkill
