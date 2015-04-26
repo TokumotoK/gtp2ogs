@@ -125,14 +125,14 @@ var Bot = function(cmd, args) {
             if (!isLegalColor(color)) {
                 return reject(new Error(util.format("Illegal color '%s'", color)));
             }
-            var handler = function(line) {
-                if (util.isError(line)) {
-                    return reject(line);
+            this.gtpCommand(util.format("genmove %s", color), function(resp) {
+                if (util.isError(resp)) {
+                    return reject(resp);
                 }
                 var move = {
                     color: color
                 };
-                switch (line) {
+                switch (resp) {
                     case "PASS":
                         move.pass = true;
                         break;
@@ -140,13 +140,12 @@ var Bot = function(cmd, args) {
                         move.resign = true;
                         break;
                     default:
-                        var coord = fromGTPCoord(line);
+                        var coord = fromGTPCoord(resp);
                         move.x = coord.x;
                         move.y = coord.y;
                 }
                 return resolve(move);
-            }
-            this.gtpCommand(util.format("genmove %s", color), handler);
+            });
         }.bind(this));
     }.bind(this);
 
@@ -161,13 +160,13 @@ var Bot = function(cmd, args) {
                     return reject(new Error(util.format("Bad value for komi (%s)", komi)));
                 }
             }
-            var handler = function(resp) {
+
+            this.gtpCommand(util.format("komi %s", komi), function(resp) {
                 if (util.isError(resp)) {
                     return reject(resp);
                 }
                 return resolve();
-            }
-            this.gtpCommand(util.format("komi %s", komi), handler);
+            });
         }.bind(this));
     }.bind(this);
 
@@ -179,14 +178,14 @@ var Bot = function(cmd, args) {
             if (!isInteger(numstones)) {
                 return reject(new Error(util.format("Bad value for handicap (%s)", numstones)));
             }
-            var handler = function(resp) {
+
+            this.gtpCommand(util.format("fixed_handicap %d", numstones), function(resp) {
                 if (util.isError(resp)) {
                     return reject(resp);
                 }
                 var stones = resp.split(" ").map(fromGTPCoord);
                 return resolve(stones);
-            }
-            this.gtpCommand(util.format("fixed_handicap %d", numstones), handler);
+            });
         }.bind(this));
     }.bind(this);
 
