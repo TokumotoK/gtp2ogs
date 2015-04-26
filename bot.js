@@ -128,7 +128,7 @@ var Bot = function(cmd, args) {
 	// Send the 'komi' GTP command and return a promise. Promise fails if
 	// the provided value is not a number or if something goes wrong with
 	// GNUGo.
-	this.komi = function(komi) {
+	this.setKomi = function(komi) {
 		return new RSVP.Promise(function(resolve, reject) {
 			if (isNaN(komi)) {
 				var komif = parseFloat(komi);
