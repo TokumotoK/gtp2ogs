@@ -100,9 +100,20 @@ var Bot = function(cmd, args) {
 				return;
 			}
 			var handler = function(line) {
-				var coord = fromGTPCoord(line);
-				coord.color = color;
-				resolve(coord);
+				var move = {color:color};
+				switch (line) {
+					case "PASS":
+						move.pass = true;
+						break;
+					case "resign":
+						move.resign = true;
+						break;
+					default:
+						var coord = fromGTPCoord(line);
+						move.x = coord.x;
+						move.y = coord.y;
+				}
+				resolve(move);
 			}
 			proc.on("close", function() {
 				reject("error");
