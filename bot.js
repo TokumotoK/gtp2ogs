@@ -112,7 +112,7 @@ var Bot = function(cmd, args) {
 	// wrong with GNUGo
 	this.genmove = function(color) {
 		return new RSVP.Promise(function(resolve, reject) {
-			if (color !== "black" && color !== "white" ) {
+			if (!isLegalColor(color)) {
 				reject(new Error(util.format("Illegal color '%s'", color)));
 				return;
 			}
