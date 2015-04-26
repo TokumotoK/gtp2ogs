@@ -3,6 +3,8 @@ var readline = require("readline");
 var util = require("util");
 var log4js = require("log4js");
 var RSVP = require("rsvp");
+var isInteger = require("is-integer");
+
 var MAX_BOARDSIZE = 19;
 
 /*
@@ -141,6 +143,21 @@ var Bot = function(cmd, args) {
 		}.bind(this));
 	}.bind(this);
 
+	// Send the 'fixed_handicap' GTP command and return a promise.
+	this.setHandicap = function(numstones) {
+		return new RSVP.Promise(function(resolve, reject) {
+			if ( !isInteger(numstones) ) {
+				reject(new Error(util.format("Bad value for handicap (%s)", numstones)));
+				return;
+			}
+			var handler = function(stonesstr) {
+				var stones = stonesstr.split(" ").map(fromGTPCoord);
+				resolve(stones);
+			}
+			this.gtpCommand(util.format("fixed_handicap %d", numstones), handler);
+		}.bind(this));
+	}.bind(this);
+
 	// Sends a command string over GTP. If handler is specified sets it to
 	// be called after a response is recieved over GTP. If handler is not
 	// defined a no-op handler is set.
@@ -179,18 +196,14 @@ var fromGTPCoord = function(movestr) {
 }
 
 var toGTPCoord = function(move) {
-	if ( isNaN(move.x) || isNaN(move.y) ) {
-		var x = parseInt(move.x);
-		var y = parseInt(move.y);
-		if ( isNaN(x) || isNaN(y) ) {
-			return new Error(util.format("Illegal coordinates x:%s y:%s",move.x, move.y));
-		}
-	}
-	if ( x === "" || y>19) {
+	if ( !isInteger(move.x) || !isInteger(move.y) ) {
 		return new Error(util.format("Illegal coordinates x:%s y:%s",move.x, move.y));
 	}
 	var x = COORD_LETTERS.charAt(move.x-1);
 	var y = move.y;
+	if ( x === "" || y>19) {
+		return new Error(util.format("Illegal coordinates x:%s y:%s",move.x, move.y));
+	}
 	return x+y;
 }
 
