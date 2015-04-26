@@ -179,11 +179,18 @@ var fromGTPCoord = function(movestr) {
 }
 
 var toGTPCoord = function(move) {
+	if ( isNaN(move.x) || isNaN(move.y) ) {
+		var x = parseInt(move.x);
+		var y = parseInt(move.y);
+		if ( isNaN(x) || isNaN(y) ) {
+			return new Error(util.format("Illegal coordinates x:%s y:%s",move.x, move.y));
+		}
+	}
+	if ( x === "" || y>19) {
+		return new Error(util.format("Illegal coordinates x:%s y:%s",move.x, move.y));
+	}
 	var x = COORD_LETTERS.charAt(move.x-1);
 	var y = move.y;
-	if ( x === "" || y>19) {
-		return new Error(util.format("Illegal coordinates x:%d y:%d",move.x, move.y));
-	}
 	return x+y;
 }
 
