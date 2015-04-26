@@ -93,6 +93,20 @@ var Bot = function(cmd, args) {
 		}.bind(this));
 	}.bind(this);
 
+	// Send the 'play <color> PASS' GTP command and return a promise.
+	// Promise fails if the color is not "black" or "white"
+	this.pass = function(color) {
+		return new RSVP.Promise(function(resolve, reject) {
+			if (!isLegalColor(color)) {
+				reject(new Error(util.Format("Bad color %s", color)));
+				return;
+			}
+			this.gtpCommand(util.format("play %s PASS", color), function(line) {
+				resolve();
+			});
+		}.bind(this));
+	}.bind(this);
+
 	// Send the 'genmove' GTP command and return a promise. Promise fails
 	// if the color is other than "black" or "white"or if something goes
 	// wrong with GNUGo
@@ -206,6 +220,13 @@ var toGTPCoord = function(move) {
 		return new Error(util.format("Illegal coordinates x:%s y:%s",move.x, move.y));
 	}
 	return x+y;
+}
+
+var isLegalColor = function(color) {
+	if (color !== "black" && color !== "white" ) {
+		return false;
+	}
+	return true;
 }
 
 module.exports =  {
