@@ -73,11 +73,13 @@ var Bot = function(cmd, args) {
 	this.boardsize = function(size) {
 		return new RSVP.Promise(function(resolve, reject) {
 			if (size > MAX_BOARDSIZE) {
-				reject(new Error("Bad size "+size));
-				return;
+				return reject(new Error("Bad size "+size));
 			}
-			this.gtpCommand("boardsize "+size, function(line) {
-				resolve();
+			this.gtpCommand("boardsize "+size, function(resp) {
+				if (util.isError(resp)) {
+					return reject(resp);
+				}
+				return resolve();
 			});
 		}.bind(this));
 	}.bind(this);
@@ -88,14 +90,13 @@ var Bot = function(cmd, args) {
 		return new RSVP.Promise(function(resolve, reject) {
 			var gtpCoord = toGTPCoord(move);
 			if (util.isError(gtpCoord)) {
-				reject(gtpCoord);
-				return
+				return reject(gtpCoord);
 			}
 			this.gtpCommand(util.format("play %s %s", move.color, gtpCoord), function(resp) {
 				if (util.isError(resp)) {
 					return reject(resp);
 				}
-				resolve();
+				return resolve();
 			});
 		}.bind(this));
 	}.bind(this);
@@ -105,14 +106,13 @@ var Bot = function(cmd, args) {
 	this.pass = function(color) {
 		return new RSVP.Promise(function(resolve, reject) {
 			if (!isLegalColor(color)) {
-				reject(new Error(util.Format("Bad color %s", color)));
-				return;
+				return reject(new Error(util.Format("Bad color %s", color)));
 			}
 			this.gtpCommand(util.format("play %s PASS", color), function(resp) {
 				if (util.isError(resp)) {
 					return reject(resp);
 				}
-				resolve();
+				return resolve();
 			});
 		}.bind(this));
 	}.bind(this);
@@ -123,8 +123,7 @@ var Bot = function(cmd, args) {
 	this.genmove = function(color) {
 		return new RSVP.Promise(function(resolve, reject) {
 			if (!isLegalColor(color)) {
-				reject(new Error(util.format("Illegal color '%s'", color)));
-				return;
+				return reject(new Error(util.format("Illegal color '%s'", color)));
 			}
 			var handler = function(line) {
 				if (util.isError(line)) {
@@ -143,7 +142,7 @@ var Bot = function(cmd, args) {
 						move.x = coord.x;
 						move.y = coord.y;
 				}
-				resolve(move);
+				return resolve(move);
 			}
 			this.gtpCommand(util.format("genmove %s", color), handler);
 		}.bind(this));
@@ -157,15 +156,14 @@ var Bot = function(cmd, args) {
 			if (isNaN(komi)) {
 				var komif = parseFloat(komi);
 				if (isNaN(komif)) {
-					reject(new Error(util.format("Bad value for komi (%s)", komi)));
-					return;
+					return reject(new Error(util.format("Bad value for komi (%s)", komi)));
 				}
 			}
 			var handler = function(resp) {
 				if (util.isError(resp)) {
 					return reject(resp);
 				}
-				resolve();
+				return resolve();
 			}
 			this.gtpCommand(util.format("komi %s", komi), handler);
 		}.bind(this));
@@ -175,15 +173,14 @@ var Bot = function(cmd, args) {
 	this.setHandicap = function(numstones) {
 		return new RSVP.Promise(function(resolve, reject) {
 			if ( !isInteger(numstones) ) {
-				reject(new Error(util.format("Bad value for handicap (%s)", numstones)));
-				return;
+				return reject(new Error(util.format("Bad value for handicap (%s)", numstones)));
 			}
 			var handler = function(resp) {
 				if (util.isError(resp)) {
 					return reject(resp);
 				}
 				var stones = resp.split(" ").map(fromGTPCoord);
-				resolve(stones);
+				return resolve(stones);
 			}
 			this.gtpCommand(util.format("fixed_handicap %d", numstones), handler);
 		}.bind(this));
