@@ -46,13 +46,13 @@ var Bot = function(cmd, args) {
 
         if (typeof handler == "function") {
             if (err !== null) {
-                handler(err);
+                handler(null, err);
                 return;
             }
             var response = line.split(" ");
             // drop the response ID and pass the actual line to the handler
             response.shift();
-            handler(response.join(" "));
+            handler(response.join(" "), null);
             delete commandHandlers[id];
         } else {
             logger.error("No command handler for ID ", id);
@@ -74,9 +74,9 @@ var Bot = function(cmd, args) {
             if (size > MAX_BOARDSIZE) {
                 return reject(new Error("Bad size " + size));
             }
-            this.gtpCommand("boardsize " + size, function(resp) {
-                if (util.isError(resp)) {
-                    return reject(resp);
+            this.gtpCommand("boardsize " + size, function(resp, err) {
+                if (err !== null) {
+                    return reject(err);
                 }
                 return resolve();
             });
@@ -91,9 +91,9 @@ var Bot = function(cmd, args) {
             if (util.isError(gtpCoord)) {
                 return reject(gtpCoord);
             }
-            this.gtpCommand(util.format("play %s %s", move.color, gtpCoord), function(resp) {
-                if (util.isError(resp)) {
-                    return reject(resp);
+            this.gtpCommand(util.format("play %s %s", move.color, gtpCoord), function(resp, err) {
+                if (err !== null) {
+                    return reject(err);
                 }
                 return resolve();
             });
@@ -107,9 +107,9 @@ var Bot = function(cmd, args) {
             if (!isLegalColor(color)) {
                 return reject(new Error(util.Format("Bad color %s", color)));
             }
-            this.gtpCommand(util.format("play %s PASS", color), function(resp) {
-                if (util.isError(resp)) {
-                    return reject(resp);
+            this.gtpCommand(util.format("play %s PASS", color), function(resp, err) {
+                if (err !== null) {
+                    return reject(err);
                 }
                 return resolve();
             });
@@ -124,9 +124,9 @@ var Bot = function(cmd, args) {
             if (!isLegalColor(color)) {
                 return reject(new Error(util.format("Illegal color '%s'", color)));
             }
-            this.gtpCommand(util.format("genmove %s", color), function(resp) {
-                if (util.isError(resp)) {
-                    return reject(resp);
+            this.gtpCommand(util.format("genmove %s", color), function(resp, err) {
+                if (err !== null) {
+                    return reject(err);
                 }
                 var move = {
                     color: color
@@ -160,9 +160,9 @@ var Bot = function(cmd, args) {
                 }
             }
 
-            this.gtpCommand(util.format("komi %s", komi), function(resp) {
-                if (util.isError(resp)) {
-                    return reject(resp);
+            this.gtpCommand(util.format("komi %s", komi), function(resp, err) {
+                if (err !== null) {
+                    return reject(err);
                 }
                 return resolve();
             });
@@ -178,9 +178,9 @@ var Bot = function(cmd, args) {
                 return reject(new Error(util.format("Bad value for handicap (%s)", numstones)));
             }
 
-            this.gtpCommand(util.format("fixed_handicap %d", numstones), function(resp) {
-                if (util.isError(resp)) {
-                    return reject(resp);
+            this.gtpCommand(util.format("fixed_handicap %d", numstones), function(resp, err) {
+                if (err !== null) {
+                    return reject(err);
                 }
                 var stones = resp.split(" ").map(fromGTPCoord);
                 return resolve(stones);
@@ -203,7 +203,7 @@ var Bot = function(cmd, args) {
         cmdID++;
     }.bind(this);
 
-    Bot.prototype.noOpHandler = function(line) {
+    Bot.prototype.noOpHandler = function(resp, err) {
         // do nothing!
     }.bind(this);
 
