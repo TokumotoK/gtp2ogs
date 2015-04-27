@@ -6,6 +6,9 @@ var RSVP = require("rsvp");
 var isInteger = require("is-integer");
 
 var MAX_BOARDSIZE = 19;
+// NOTE: i is missing on purpose!
+// See http://senseis.xmp.net/?Coordinates for more information
+var COORD_LETTERS = "abcdefghjklmnopqrst";
 
 /*
  * A single instance of Bot represents a single GNUGo process. A bot must be
@@ -213,10 +216,6 @@ var Bot = function(cmd, args) {
 
     return this
 }
-
-// NOTE: i is missing on purpose!
-// See http://senseis.xmp.net/?Coordinates for more information
-var COORD_LETTERS = "abcdefghjklmnopqrst";
 
 var fromGTPCoord = function(movestr) {
     var xchar = movestr.toLowerCase().charAt(0);
