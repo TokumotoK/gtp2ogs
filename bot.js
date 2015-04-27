@@ -69,7 +69,7 @@ var Bot = function(cmd, args) {
 
     // Send the 'boardsize' GTP command and return a promise. Fails if the
     // requested size is larger than 19.
-    this.boardsize = function(size) {
+    Bot.prototype.boardsize = function(size) {
         return new RSVP.Promise(function(resolve, reject) {
             if (size > MAX_BOARDSIZE) {
                 return reject(new Error("Bad size " + size));
@@ -85,7 +85,7 @@ var Bot = function(cmd, args) {
 
     // Send the 'play' GTP command and return a promise. Promise fails if
     // the coordinates are illegal or if something goes wrong with GNUGo
-    this.play = function(move) {
+    Bot.prototype.play = function(move) {
         return new RSVP.Promise(function(resolve, reject) {
             var gtpCoord = toGTPCoord(move);
             if (util.isError(gtpCoord)) {
@@ -102,7 +102,7 @@ var Bot = function(cmd, args) {
 
     // Send the 'play <color> PASS' GTP command and return a promise.
     // Promise fails if the color is not "black" or "white"
-    this.pass = function(color) {
+    Bot.prototype.pass = function(color) {
         return new RSVP.Promise(function(resolve, reject) {
             if (!isLegalColor(color)) {
                 return reject(new Error(util.Format("Bad color %s", color)));
@@ -119,7 +119,7 @@ var Bot = function(cmd, args) {
     // Send the 'genmove' GTP command and return a promise. Promise fails
     // if the color is other than "black" or "white"or if something goes
     // wrong with GNUGo
-    this.genmove = function(color) {
+    Bot.prototype.genmove = function(color) {
         return new RSVP.Promise(function(resolve, reject) {
             if (!isLegalColor(color)) {
                 return reject(new Error(util.format("Illegal color '%s'", color)));
@@ -151,7 +151,7 @@ var Bot = function(cmd, args) {
     // Send the 'komi' GTP command and return a promise. Promise fails if
     // the provided value is not a number or if something goes wrong with
     // GNUGo.
-    this.setKomi = function(komi) {
+    Bot.prototype.setKomi = function(komi) {
         return new RSVP.Promise(function(resolve, reject) {
             if (isNaN(komi)) {
                 var komif = parseFloat(komi);
@@ -172,7 +172,7 @@ var Bot = function(cmd, args) {
     // Send the 'fixed_handicap' GTP command and return a promise. The promise
     // fails if the number of handicap stones is not an integer or if something
     // goes wrong with GNUGo
-    this.setHandicap = function(numstones) {
+    Bot.prototype.setHandicap = function(numstones) {
         return new RSVP.Promise(function(resolve, reject) {
             if (!isInteger(numstones)) {
                 return reject(new Error(util.format("Bad value for handicap (%s)", numstones)));
@@ -191,7 +191,7 @@ var Bot = function(cmd, args) {
     // Sends a command string over GTP. If handler is specified sets it to
     // be called after a response is recieved over GTP. If handler is not
     // defined a no-op handler is set.
-    this.gtpCommand = function(cmd, handler) {
+    Bot.prototype.gtpCommand = function(cmd, handler) {
         if (typeof handler == "function") {
             commandHandlers[cmdID] = handler;
         } else if (typeof handler == "undefined") {
@@ -203,11 +203,11 @@ var Bot = function(cmd, args) {
         cmdID++;
     }.bind(this);
 
-    this.noOpHandler = function(line) {
+    Bot.prototype.noOpHandler = function(line) {
         // do nothing!
     }.bind(this);
 
-    this.kill = function() {
+    Bot.prototype.kill = function() {
         proc.kill();
     }.bind(this);
 
