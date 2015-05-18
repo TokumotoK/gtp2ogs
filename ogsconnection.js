@@ -9,6 +9,7 @@ var querystring = require("querystring");
 var ggsHostURL = "https://ggsbeta.online-go.com:443";
 var restHostURL = "https://beta.online-go.com:443";
 var apiURL = "/api/v1/";
+var accessTokenURI = "/oauth2/access_token";
 
 var OGSConnection = function(opts) {
     logger = log4js.getLogger("OGSConnection");
@@ -52,23 +53,21 @@ var OGSConnection = function(opts) {
                 };
 
                 var options = {
-                    url: restHostURL + "/oauth2/access_token",
+                    url: restHostURL + accessTokenURI,
                     method: "POST",
                     headers: {
                         "Content-Type": "application/x-www-form-urlencoded"
                     },
                     body: querystring.stringify({
-                        "client_id": this.authInfo.client_id,
-                        "client_secret": this.authInfo.client_secret,
-                        "grant_type": "password",
-                        "username": this.authInfo.username,
-                        "password": this.authInfo.oauth2_password
+                        client_id: this.authInfo.client_id,
+                        client_secret: this.authInfo.client_secret,
+                        grant_type: "password",
+                        username: this.authInfo.username,
+                        password: this.authInfo.oauth2_password
                     })
                 }
-                logger.debug(options);
                 request(options)
                     .then(function(resp) {
-                            console.log(resp);
                             // Apparently this event has to emitted for the login to work
                             this.socket.emit("notification/connect", this.authInfo);
 
