@@ -56,7 +56,8 @@ var OGSConnection = function(opts) {
                     url: restHostURL + accessTokenURI,
                     method: "POST",
                     headers: {
-                        "Content-Type": "application/x-www-form-urlencoded"
+                        "Content-Type": "application/x-www-form-urlencoded",
+                        "Host": "beta.online-go.com",
                     },
                     body: querystring.stringify({
                         client_id: this.authInfo.client_id,
@@ -68,6 +69,7 @@ var OGSConnection = function(opts) {
                 }
                 request(options)
                     .then(function(resp) {
+                            this.authInfo.oauth = JSON.parse(resp);
                             // Apparently this event has to emitted for the login to work
                             this.socket.emit("notification/connect", this.authInfo);
 
@@ -91,9 +93,11 @@ var OGSConnection = function(opts) {
         switch (notification.type) {
             case "challenge":
                 logger.info("Received challenge from user", notification.user.username);
-                //this.rejectChallenge(notification).then(function() {
-                //    logger.info("rejected challenge from ", notification.user.username);
-                //})
+                this.rejectChallenge(notification).then(function() {
+                    logger.info("rejected challenge from ", notification.user.username);
+                }, function(resp) {
+                    logger.error(resp.error);
+                })
                 break;
             default:
                 logger.info(notification);
@@ -102,13 +106,13 @@ var OGSConnection = function(opts) {
 
     OGSConnection.prototype.rejectChallenge = function(notification) {
         var options = {
-            uri: restHostURL + apiURL + "/me/challenges/" + notification.id,
+            uri: restHostURL + apiURL + "me/challenges/" + notification.challenge_id,
             method: "DELETE",
             headers: {
-                "Authorization": "Bearer " + this.authInfo.client_secret
+                "Authorization": "Bearer " + this.authInfo.oauth.access_token,
+                "Host": "beta.online-go.com"
             }
         };
-        logger.debug(options.headers.Authorization);
         return request(options)
     }.bind(this);
 
