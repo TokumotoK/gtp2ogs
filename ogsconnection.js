@@ -1,4 +1,5 @@
 var socketio = require("socket.io-client");
+
 var log4js = require("log4js");
 var RSVP = require("rsvp");
 var util = require("util");
@@ -12,8 +13,8 @@ var restHostURL = "https://beta.online-go.com:443";
 var apiURL = "/api/v1/";
 var accessTokenURI = "/oauth2/access_token";
 
-
-// TODO: create a Game object that contains Bot and handles a single game
+// TODO Game: add proper gamestate parsing (play existing moves to GNUGo)
+// TODO fromOGSCoord/toOGSCoord: fix coordinate conversion (GTP <-> OGS)
 var OGSConnection = function(opts) {
     logger = log4js.getLogger("OGSConnection");
     this.authInfo = {};
@@ -146,21 +147,21 @@ var OGSConnection = function(opts) {
                 break;
 
             case "yourMove":
-                var game_id = notification.game_id;
+                //    var game_id = notification.game_id;
 
-                if (this.activeGames[game_id] === undefined) {
-                    this.initGame(notification);
-                }
-                var game = this.activeGames[game_id];
+                //    if (this.activeGames[game_id] === undefined) {
+                //        this.initGame(notification);
+                //    }
+                //    var game = this.activeGames[game_id];
 
-                if (game.botInstance !== undefined) {
-                    game.promise = game.botInstance.genmove(game.botColor)
-                        .then(function(coord) {
-                            return this.playMove(game_id, this.toOGSCoord(coord));
-                        }.bind(this), function(err) {
-                            logger.error(err);
-                        })
-                };
+                //    if (game.botInstance !== undefined) {
+                //        game.promise = game.botInstance.genmove(game.botColor)
+                //            .then(function(coord) {
+                //                return this.playMove(game_id, this.toOGSCoord(coord));
+                //            }.bind(this), function(err) {
+                //                logger.error(err);
+                //            })
+                //    };
                 break;
 
             case "gameEnded":
@@ -236,86 +237,127 @@ var OGSConnection = function(opts) {
     }.bind(this);
 
     OGSConnection.prototype.initGame = function(notification) {
-        var botName = this.authInfo.username;
-        var botColor = notification.black == botName ? "black" : "white";
-        var opponent = notification.black === botName ? notification.white : notification.black;
-        var opponentColor = botColor === "black" ? "white" : "black";
         var game_id = notification.game_id;
-        var player_id = notification.player_id;
-        var gamedata = null;
-        var bot_turn = false;
-
-        this.socket.emit("game/connect", {
-            game_id: game_id,
-            player_id: player_id,
-            chat: true // TODO: figure out what actually happens if this is set to false 
-        });
-
-        this.socket.on("game/" + game_id + "/gamedata", function(gamedata) {
-            // TODO: set komi etc to Bot
-            console.log("gamedata: received");
-            bot_turn = gamedata.phase === "play";
-        }.bind(this));
-
-        // TODO: should these callbacks be added AFTER the "game/connect" has finished?
-        this.socket.on("game/" + game_id + "/move", function(ev) {
-            var coords = this.fromOGSCoord(ev.move);
-            if (!bot_turn) {
-                this.activeGames[game_id].botInstance.play({
-                        x: coords.x,
-                        y: coords.y,
-                        color: color
-                    })
-                    .then(function(coord) {
-                        bot_turn = true;
-                        return this.activeGames[game_id].botInstance.genmove(botColor);
-                    }.bind(this))
-                    .then(function(coord) {
-                        return this.playMove(game_id, this.toOGSCoord(coord));
-                    }.bind(this))
-                    .then(function() {
-                        bot_turn = false;
-                    }.bind(this));
-            }
-        }.bind(this));
-
-        try {
-            var b = new Bot("gnugo", "--mode gtp");
-            this.activeGames[game_id] = {
-                botInstance: b,
-                botColor: botColor
-            };
-
-            console.log(b);
-
-            // TODO: don't hardcode this!
-            this.activeGames[game_id].promise = b.boardsize(19);
-        } catch (e) {
-            logger.error("Caught exception: ", e);
+        if (this.activeGames[game_id] === undefined) {
+            request({
+                    uri: restHostURL + apiURL + "games/" + game_id,
+                    method: "GET",
+                    headers: {
+                        "Authorization": "Bearer " + this.authInfo.oauth.access_token,
+                        "Host": "beta.online-go.com"
+                    }
+                })
+                .then(function(resp) {
+                    var gameInfo = JSON.parse(resp);
+                    this.activeGames[game_id] = new Game(this.socket, {
+                        name: this.authInfo.username,
+                        auth: gameInfo.auth
+                    }, notification);
+                }.bind(this));
         }
-
     }.bind(this);
-
-    OGSConnection.prototype.toOGSCoord = function(coord) {
-        // NOTE: i is missing on purpose!
-        var letters = "abcdefghjklmnopqrst";
-        var x = letters[coord.x - 1];
-        var y = letters[coord.y - 2];
-        return x + y;
-    }.bind(this);
-
-    OGSConnection.prototype.fromOGSCoord = function(coord) {
-        // NOTE: i is missing on purpose!
-        var letters = "abcdefghjklmnopqrst";
-        var x = letters.indexOf(coord[0]);
-        var y = letters.indexOf(coord[1]);
-        return {
-            x: x,
-            y: y
-        };
-    }.bind(this);
-
 };
+
+var toOGSCoord = function(coord) {
+    // NOTE: i is missing on purpose!
+    var letters = "abcdefghjklmnopqrst";
+    var x = letters[coord.x - 1];
+    var y = letters[coord.y - 2];
+    return x + y;
+};
+
+var fromOGSCoord = function(coord) {
+    // NOTE: i is missing on purpose!
+    var letters = "abcdefghjklmnopqrst";
+    var x = letters.indexOf(coord[0]) + 1;
+    var y = letters.indexOf(coord[1]) + 1;
+    return {
+        x: x,
+        y: y
+    };
+};
+
+var Game = function(socket, botInfo, opts) {
+    this.socket = socket;
+    this.botInfo = botInfo;
+    this.game_id = opts.game_id;
+    this.player_id = opts.player_id;
+    this.logger = log4js.getLogger(util.format("Game ID:%s", this.game_id));
+    this.gameURI = "game/" + this.game_id;
+    this.botTurn = false;
+
+    this.socket.emit("game/connect", {
+        game_id: this.game_id,
+        player_id: this.player_id,
+        chat: true // TODO: figure out what actually happens if this is set to false 
+    });
+
+    this.socket.on(this.gameURI + "/gamedata", function(gamedata) {
+        this.logger.info("gamedata received");
+        this.gamedata = gamedata;
+        this.bot = this.initBot();
+        this.botTurn = this.gamedata.phase === "play";
+        this.botColor = this.gamedata.players.black.username === this.botInfo.name ? "black" : "white";
+
+        if (this.botTurn) {
+            this.generateBotMove();
+        }
+    }.bind(this));
+
+    this.socket.on(this.gameURI + "/move", function(move) {
+        console.log("MOVE", this.botTurn, move);
+        if (this.botTurn) {
+            this.generateBotMove();
+        } else {
+            this.addOpponentMove(move);
+        }
+    }.bind(this));
+
+    Game.prototype.initBot = function() {
+        var bot = new Bot("gnugo", "--mode gtp");
+        bot.boardsize(this.gamedata.height)
+            .then(function() {
+                return bot.setKomi(this.gamedata.komi);
+            }.bind(this))
+            .then(function() {
+                if (this.gamedata.handicap > 0) {
+                    return bot.setHandicap(this.gamedata.handicap);
+                }
+            }.bind(this))
+        return bot
+    }.bind(this);
+
+    Game.prototype.generateBotMove = function() {
+        this.bot.genmove(this.botColor)
+            .then(function(move) {
+                this.botTurn = false;
+                this.logger.debug("GENERATED MOVE: ", move);
+                this.socket.emit("game/move", {
+                    auth: this.botInfo.auth,
+                    game_id: this.game_id,
+                    player_id: this.player_id,
+                    move: toOGSCoord(move)
+                });
+
+            }.bind(this));
+    }.bind(this);
+
+    Game.prototype.addOpponentMove = function(move) {
+        var coords = fromOGSCoord(move.move);
+        this.bot.play({
+                x: coords.x,
+                y: coords.y,
+                color: this.botColor === "black" ? "white" : "black"
+            })
+            .then(function() {
+                this.botTurn = true;
+                this.logger.debug("Bot's turn!");
+                return this.generateBotMove();
+            }.bind(this), function(err) {
+                console.log(err);
+            });
+    }.bind(this);
+}
 
 module.exports = {
     OGSConnection: OGSConnection
